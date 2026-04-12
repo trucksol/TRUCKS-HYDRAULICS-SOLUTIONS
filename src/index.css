@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", sans-serif;
+  
+  --color-industrial-green: #22c55e;
+  --color-steel-gray: #2E2E2E;
+  --color-deep-charcoal: #1A1A1A;
+}
+
+@layer base {
+  body {
+    @apply bg-deep-charcoal text-white font-sans;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display uppercase tracking-wider;
+  }
+}
+
+@layer utilities {
+  .brushed-metal {
+    background-image: 
+      repeating-linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.03) 0px,
+        rgba(255, 255, 255, 0.03) 1px,
+        transparent 1px,
+        transparent 10px
+      ),
+      linear-gradient(to bottom, #1A1A1A, #2E2E2E);
+    background-blend-mode: overlay;
+  }
+
+  .green-glow {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+  }
+
+  .green-glow-hover:hover {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.4);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #1A1A1A;
+}
+::-webkit-scrollbar-thumb {
+  background: #22c55e;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #16a34a;
+}

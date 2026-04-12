@@ -1,0 +1,201 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, email format)
+    //   - displayName: string (optional)
+    //   - companyName: string (optional)
+    //   - taxId: string (optional)
+    //   - address: string (optional)
+    //   - phone: string (optional)
+    //   - role: string (required, enum: ['client', 'admin'])
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: orders
+    // Document ID: {orderId}
+    // Fields:
+    //   - orderId: string (required)
+    //   - userId: string (required)
+    //   - items: list (required, list of objects)
+    //   - totalAmount: number (required)
+    //   - status: string (required, enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'])
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: favorites
+    // Document ID: {favoriteId}
+    // Fields:
+    //   - userId: string (required)
+    //   - partNumber: string (required)
+    //   - name: string (required)
+    //   - brand: string (optional)
+    //   - addedAt: timestamp (required)
+    //
+    // Collection: shipments
+    // Document ID: {shipmentId}
+    // Fields:
+    //   - shipmentId: string (required)
+    //   - orderId: string (required)
+    //   - trackingNumber: string (required)
+    //   - carrier: string (required)
+    //   - status: string (required)
+    //   - estimatedDelivery: timestamp (optional)
+    //   - updatedAt: timestamp (required)
+    //
+    // Collection: products
+    // Document ID: {productId}
+    // Fields:
+    //   - partNumber: string (required)
+    //   - name: string (required)
+    //   - brand: string (required)
+    //   - industry: string (optional)
+    //   - category: string (required)
+    //   - description: string (optional)
+    //   - inStock: boolean (required)
+    //   - price: number (optional)
+    //   - imageUrl: string (optional)
+    //
+    // Collection: quotes
+    // Document ID: {quoteId}
+    // Fields:
+    //   - fullName: string (required)
+    //   - companyName: string (optional)
+    //   - email: string (required)
+    //   - phone: string (optional)
+    //   - partDetails: string (required)
+    //   - quantity: number (required)
+    //   - urgency: string (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "ayman.abdelqader1983@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'companyName', 'taxId', 'address', 'phone', 'role', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.role in ['client', 'admin'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return hasOnlyAllowedFields(['orderId', 'userId', 'items', 'totalAmount', 'status', 'createdAt']) &&
+             data.orderId is string &&
+             data.userId is string &&
+             data.items is list &&
+             data.totalAmount is number &&
+             data.status in ['pending', 'processing', 'shipped', 'delivered', 'cancelled'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidFavorite(data) {
+      return hasOnlyAllowedFields(['userId', 'partNumber', 'name', 'brand', 'addedAt']) &&
+             data.userId == request.auth.uid &&
+             data.partNumber is string &&
+             data.name is string &&
+             data.addedAt is timestamp;
+    }
+
+    function isValidShipment(data) {
+      return hasOnlyAllowedFields(['shipmentId', 'orderId', 'trackingNumber', 'carrier', 'status', 'estimatedDelivery', 'updatedAt']) &&
+             data.shipmentId is string &&
+             data.orderId is string &&
+             data.trackingNumber is string &&
+             data.carrier is string &&
+             data.status is string &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidProduct(data) {
+      return hasOnlyAllowedFields(['partNumber', 'name', 'brand', 'industry', 'category', 'description', 'inStock', 'price', 'imageUrl']) &&
+             data.partNumber is string &&
+             data.name is string &&
+             data.brand is string &&
+             data.category is string &&
+             data.inStock is bool;
+    }
+
+    function isValidQuote(data) {
+      return hasOnlyAllowedFields(['fullName', 'companyName', 'email', 'phone', 'partDetails', 'quantity', 'urgency', 'createdAt']) &&
+             data.fullName is string && data.fullName.size() > 0 &&
+             data.email is string && isValidEmail(data.email) &&
+             data.partDetails is string &&
+             data.quantity is number &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /products/{productId} {
+      allow read: if true; // Products are publicly searchable
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) && request.resource.data.role == 'client' || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) && request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin(); // Only admins can create orders in this B2B context
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /favorites/{favoriteId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidFavorite(request.resource.data);
+      allow update: if isAuthenticated() && isOwner(resource.data.userId) && isValidFavorite(request.resource.data);
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+
+    match /shipments/{shipmentId} {
+      allow read: if isAuthenticated(); // Simplified for now, but should ideally check order ownership
+      allow write: if isAdmin();
+    }
+
+    match /quotes/{quoteId} {
+      allow read: if isAdmin();
+      allow create: if isValidQuote(request.resource.data);
+    }
+  }
+}

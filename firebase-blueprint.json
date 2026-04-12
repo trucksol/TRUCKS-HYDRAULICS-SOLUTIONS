@@ -1,0 +1,133 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user profile and company details for B2B accounts.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "companyName": { "type": "string" },
+        "taxId": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["client", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Order": {
+      "title": "B2B Order",
+      "description": "Stores order history for B2B accounts.",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string" },
+        "userId": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "partNumber": { "type": "string" },
+              "name": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "processing", "shipped", "delivered", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderId", "userId", "items", "totalAmount", "status", "createdAt"]
+    },
+    "FavoritePart": {
+      "title": "Favorite Part",
+      "description": "Stores parts saved by the user for quick access.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "partNumber": { "type": "string" },
+        "name": { "type": "string" },
+        "brand": { "type": "string" },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "partNumber", "name", "addedAt"]
+    },
+    "Shipment": {
+      "title": "Shipment Tracking",
+      "description": "Stores tracking information for orders.",
+      "type": "object",
+      "properties": {
+        "shipmentId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "trackingNumber": { "type": "string" },
+        "carrier": { "type": "string" },
+        "status": { "type": "string" },
+        "estimatedDelivery": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["shipmentId", "orderId", "trackingNumber", "carrier", "status", "updatedAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Stores hydraulic spare parts information for search and catalog.",
+      "type": "object",
+      "properties": {
+        "partNumber": { "type": "string" },
+        "name": { "type": "string" },
+        "brand": { "type": "string" },
+        "industry": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "inStock": { "type": "boolean" },
+        "price": { "type": "number" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["partNumber", "name", "brand", "category", "inStock"]
+    },
+    "QuoteRequest": {
+      "title": "Quote Request",
+      "description": "Stores customer quote requests from the website form.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "companyName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "partDetails": { "type": "string" },
+        "quantity": { "type": "number" },
+        "urgency": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fullName", "email", "partDetails", "quantity", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile and company details."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "B2B order history."
+    },
+    "/favorites/{favoriteId}": {
+      "schema": "FavoritePart",
+      "description": "Saved parts for quick access."
+    },
+    "/shipments/{shipmentId}": {
+      "schema": "Shipment",
+      "description": "Tracking information for orders."
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Product catalog for search and browsing."
+    },
+    "/quotes/{quoteId}": {
+      "schema": "QuoteRequest",
+      "description": "Customer quote requests."
+    }
+  }
+}

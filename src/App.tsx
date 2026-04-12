@@ -64,7 +64,18 @@ import { auth, db } from './firebase';
 import Fuse from 'fuse.js';
 
 // --- Gemini Initialization ---
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+
+const getAI = () => {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not set. Please configure it in your environment variables.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+};
 
 // --- Error Handling ---
 enum OperationType {
@@ -1747,6 +1758,7 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
     setIsLoading(true);
 
     try {
+      const ai = getAI();
       const chat = ai.chats.create({
         model: "gemini-3-flash-preview",
         config: {

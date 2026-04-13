@@ -65,18 +65,24 @@ import Fuse from 'fuse.js';
 
 // --- Gemini Initialization ---
 let aiInstance: GoogleGenAI | null = null;
+declare const __GEMINI_API_KEY__: string;
 
 const getAI = () => {
   if (!aiInstance) {
-    // 1. Try Vite's standard way (VITE_ prefix is required for client-side exposure in Vite)
-    let apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    // 1. Try the direct replacement from vite.config.ts (most reliable for Vercel)
+    let apiKey = '';
+    try {
+      apiKey = (__GEMINI_API_KEY__ as any);
+    } catch (e) {
+      // __GEMINI_API_KEY__ not defined
+    }
     
-    // 2. Fallback to the replaced process.env variables (from vite.config.ts)
-    if (!apiKey || apiKey === "undefined" || apiKey === "null") {
-      apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    // 2. Fallbacks
+    if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey === "") {
+      apiKey = import.meta.env.VITE_GEMINI_API_KEY || (process as any).env.VITE_GEMINI_API_KEY || (process as any).env.GEMINI_API_KEY;
     }
 
-    if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey === "MY_GEMINI_API_KEY") {
+    if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey === "MY_GEMINI_API_KEY" || apiKey === "") {
       console.error("GEMINI_API_KEY is missing in the build. Please ensure VITE_GEMINI_API_KEY is set in Vercel.");
       throw new Error("MISSING_API_KEY");
     }

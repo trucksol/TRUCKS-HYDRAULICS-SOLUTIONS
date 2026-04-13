@@ -4,12 +4,18 @@ import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
+  // Load env file based on `mode` in the current working directory.
+  const env = loadEnv(mode, process.cwd(), '');
+  
+  // Capture the key from any possible source during build
+  const GEMINI_KEY = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
+
   return {
     plugins: [react(), tailwindcss()],
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || ""),
-      'process.env.VITE_GEMINI_API_KEY': JSON.stringify(env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || ""),
+      'process.env.GEMINI_API_KEY': JSON.stringify(GEMINI_KEY),
+      'process.env.VITE_GEMINI_API_KEY': JSON.stringify(GEMINI_KEY),
+      '__GEMINI_API_KEY__': JSON.stringify(GEMINI_KEY),
     },
     resolve: {
       alias: {

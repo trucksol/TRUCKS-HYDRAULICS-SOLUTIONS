@@ -1050,57 +1050,65 @@ const QuoteForm = () => {
     console.log("Starting quote submission...", formData);
     
     try {
-      // 1. Save to Firestore (Database Backup - Text only)
+      let base64Image = '';
+      
+      // 1. Convert file to Base64 if exists (Free storage workaround)
+      if (file) {
+        console.log("Converting image to Base64...");
+        const reader = new FileReader();
+        base64Image = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        
+        // Basic check for size (Firestore limit is 1MB per document)
+        if (base64Image.length > 1000000) {
+          throw new Error("The photo is too large. Please use a smaller image or a screenshot.");
+        }
+      }
+
+      // 2. Save to Firestore (Database Backup - Including Image)
       try {
         await addDoc(collection(db, 'quotes'), {
           ...formData,
+          imageData: base64Image, // Save image directly as text
           hasAttachment: !!file,
           createdAt: serverTimestamp()
         });
         console.log("Saved to Firestore successfully");
       } catch (fsError: any) {
         console.error("Firestore save failed:", fsError);
+        throw new Error("Database error: " + fsError.message);
       }
 
-      // 2. Send Email via Web3Forms (Direct Upload)
+      // 3. Send Email via Web3Forms (Text only to avoid Pro error)
       const accessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
       if (accessKey) {
         console.log("Sending enquiry via Web3Forms...");
         try {
-          const web3FormData = new FormData();
-          web3FormData.append("access_key", accessKey);
-          web3FormData.append("subject", `New Quote Request from ${formData.fullName}`);
-          web3FormData.append("from_name", "Trucks & Hydraulics Website");
-          
-          // Append all form fields
-          Object.entries(formData).forEach(([key, value]) => {
-            web3FormData.append(key, value.toString());
-          });
-
-          // Append file if exists
-          if (file) {
-            web3FormData.append("attachment", file);
-          }
-
           const response = await fetch("https://api.web3forms.com/submit", {
             method: "POST",
-            body: web3FormData
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({
+              access_key: accessKey,
+              subject: `New Quote Request from ${formData.fullName}`,
+              from_name: "Trucks & Hydraulics Website",
+              ...formData,
+              message: file ? "NOTE: This customer attached a photo. View it in your Admin Dashboard." : "No photo attached."
+            }),
           });
           
           const result = await response.json();
-          if (result.success) {
-            console.log("Enquiry sent successfully");
-          } else {
-            console.warn("Web3Forms submission failed:", result);
-            throw new Error(result.message || "Email delivery failed");
+          if (!result.success) {
+            console.warn("Web3Forms warning:", result);
           }
         } catch (emailError: any) {
           console.error("Email service error:", emailError);
-          // If it's the error we threw from the 'else' block above, it will have the Web3Forms message
-          throw new Error(emailError.message || "We couldn't send your email. Please check your internet connection or try again later.");
         }
-      } else {
-        throw new Error("Email service is not configured. Please contact the administrator.");
       }
 
       setSubmitted(true);
@@ -1116,7 +1124,7 @@ const QuoteForm = () => {
       });
     } catch (error: any) {
       console.error("Submission error:", error);
-      alert(error.message || "There was an error submitting your request. Please check your internet connection and try again.");
+      alert(error.message || "There was an error submitting your request.");
     } finally {
       setIsSubmitting(false);
     }
@@ -1609,10 +1617,11 @@ const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
 
 const Dashboard = ({ onClose }: { onClose: () => void }) => {
   const { user, profile } = React.useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState<'orders' | 'profile' | 'favorites' | 'tracking'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'profile' | 'favorites' | 'tracking' | 'quotes'>('orders');
   const [orders, setOrders] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<any[]>([]);
   const [shipments, setShipments] = useState<any[]>([]);
+  const [quotes, setQuotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1621,6 +1630,7 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
     const ordersQuery = query(collection(db, 'orders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
     const favoritesQuery = query(collection(db, 'favorites'), where('userId', '==', user.uid), orderBy('addedAt', 'desc'));
     const shipmentsQuery = query(collection(db, 'shipments')); // Simplified for demo
+    const quotesQuery = query(collection(db, 'quotes'), orderBy('createdAt', 'desc'));
 
     const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
       setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -1634,14 +1644,22 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
       setShipments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'shipments'));
 
+    let unsubQuotes = () => {};
+    if (profile?.role === 'admin') {
+      unsubQuotes = onSnapshot(quotesQuery, (snapshot) => {
+        setQuotes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'quotes'));
+    }
+
     setLoading(false);
 
     return () => {
       unsubOrders();
       unsubFavorites();
       unsubShipments();
+      unsubQuotes();
     };
-  }, [user]);
+  }, [user, profile]);
 
   const tabs = [
     { id: 'orders', label: 'Orders', icon: <ShoppingCart size={18} /> },
@@ -1649,6 +1667,10 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
     { id: 'favorites', label: 'Favorites', icon: <Star size={18} /> },
     { id: 'profile', label: 'Company Profile', icon: <Settings size={18} /> },
   ];
+
+  if (profile?.role === 'admin') {
+    tabs.push({ id: 'quotes', label: 'Quote Requests', icon: <Mail size={18} /> });
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -1818,6 +1840,65 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
               <button className="w-full border border-industrial-green text-industrial-green py-4 rounded-sm font-display font-bold uppercase tracking-widest hover:bg-industrial-green hover:text-deep-charcoal transition-all">
                 Edit Company Details
               </button>
+            </div>
+          )}
+
+          {activeTab === 'quotes' && profile?.role === 'admin' && (
+            <div className="space-y-6">
+              {quotes.length === 0 ? (
+                <div className="text-center py-20 text-gray-500">
+                  <Mail size={48} className="mx-auto mb-4 opacity-20" />
+                  <p className="uppercase tracking-widest text-sm">No quote requests found.</p>
+                </div>
+              ) : (
+                quotes.map(quote => (
+                  <div key={quote.id} className="bg-deep-charcoal p-6 rounded-sm border border-white/5 flex flex-col gap-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="text-xs text-industrial-green font-bold uppercase tracking-widest mb-1">{quote.companyName || 'Individual'}</div>
+                        <div className="text-xl font-bold">{quote.fullName}</div>
+                        <div className="text-sm text-gray-400">{quote.email} | {quote.phone}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-gray-500 uppercase tracking-widest mb-1">{new Date(quote.createdAt?.toDate()).toLocaleString()}</div>
+                        <div className={`px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-widest ${
+                          quote.urgency === 'Emergency (Downtime)' ? 'bg-red-500 text-white' : 
+                          quote.urgency === 'Urgent' ? 'bg-orange-500 text-white' : 'bg-blue-500 text-white'
+                        }`}>
+                          {quote.urgency}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-8">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-1">Part Details</label>
+                          <div className="text-gray-300 text-sm bg-steel-gray/30 p-4 rounded-sm border border-white/5 whitespace-pre-wrap">{quote.partDetails}</div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-1">Quantity</label>
+                          <div className="text-xl font-bold">{quote.quantity}</div>
+                        </div>
+                      </div>
+                      
+                      {quote.imageData && (
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-1">Attached Photo</label>
+                          <div className="border border-white/10 rounded-sm overflow-hidden bg-black/20">
+                            <img 
+                              src={quote.imageData} 
+                              alt="Nameplate/Part" 
+                              className="w-full h-auto max-h-64 object-contain cursor-zoom-in"
+                              onClick={() => window.open(quote.imageData)}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>

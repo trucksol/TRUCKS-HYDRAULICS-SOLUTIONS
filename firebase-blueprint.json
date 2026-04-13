@@ -100,6 +100,7 @@
         "quantity": { "type": "number" },
         "urgency": { "type": "string" },
         "hasAttachment": { "type": "boolean", "description": "Whether a photo was included in the email" },
+        "imageData": { "type": "string", "description": "Base64 encoded image data for free storage workaround" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["fullName", "email", "partDetails", "quantity", "createdAt"]

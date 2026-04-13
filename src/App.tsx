@@ -69,20 +69,24 @@ let aiInstance: GoogleGenAI | null = null;
 const getAI = () => {
   if (!aiInstance) {
     let apiKey = '';
-    try {
-      // Try process.env first (for environments that polyfill it)
-      apiKey = (process as any).env.GEMINI_API_KEY;
-    } catch (e) {
-      // process might not be defined in standard Vite browser builds
+    
+    // 1. Try Vite's import.meta.env (Standard for Vercel/Vite)
+    if (import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+      apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     }
     
-    // Fallback to Vite's import.meta.env
+    // 2. Try process.env (Standard for AI Studio Preview)
     if (!apiKey) {
-      apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      try {
+        apiKey = (process as any).env.GEMINI_API_KEY;
+      } catch (e) {
+        // process not defined
+      }
     }
 
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not set. Please configure VITE_GEMINI_API_KEY in your environment variables.");
+      console.error("GEMINI_API_KEY is missing. Please set VITE_GEMINI_API_KEY in your environment variables.");
+      throw new Error("MISSING_API_KEY");
     }
     aiInstance = new GoogleGenAI({ apiKey });
   }
@@ -1772,7 +1776,7 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
     try {
       const ai = getAI();
       const chat = ai.chats.create({
-        model: "gemini-flash-latest",
+        model: "gemini-3-flash-preview",
         config: {
           systemInstruction: `You are the TRUCKS & HYDRAULICS SOLUTIONS Expert Assistant. Your goal is to help users find hydraulic spare parts, identify components from descriptions, check stock (simulated), and provide technical support. 
           You are professional, authoritative, and helpful. 
@@ -1781,10 +1785,11 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
           Always encourage them to 'Request a Quote' for official pricing and availability.
           Keep responses concise and focused on industrial hydraulic solutions.`,
         },
-        history: messages.map(m => ({
+        // Only include history if there are messages beyond the initial greeting
+        history: messages.length > 1 ? messages.map(m => ({
           role: m.role,
           parts: [{ text: m.text }]
-        }))
+        })) : []
       });
 
       const result = await chat.sendMessage({
@@ -1793,9 +1798,17 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
 
       const modelResponse = result.text || "I'm sorry, I couldn't process that request. Please try again or contact our support team.";
       setMessages(prev => [...prev, { role: 'model', text: modelResponse }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chat error:", error);
-      setMessages(prev => [...prev, { role: 'model', text: "I'm experiencing some technical difficulties. Please use our contact form or WhatsApp for urgent enquiries." }]);
+      let errorMessage = "I'm experiencing some technical difficulties. Please use our contact form or WhatsApp for urgent enquiries.";
+      
+      if (error.message === "MISSING_API_KEY") {
+        errorMessage = "Technical Error: API Key is missing. Please ensure VITE_GEMINI_API_KEY is set in your environment variables.";
+      } else if (error.message?.includes("API_KEY_INVALID")) {
+        errorMessage = "Technical Error: The provided API Key is invalid. Please check your Gemini API key.";
+      }
+      
+      setMessages(prev => [...prev, { role: 'model', text: errorMessage }]);
     } finally {
       setIsLoading(false);
     }

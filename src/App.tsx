@@ -1096,7 +1096,8 @@ const QuoteForm = () => {
           }
         } catch (emailError: any) {
           console.error("Email service error:", emailError);
-          throw new Error("We couldn't send your email. Please try again or use WhatsApp.");
+          // If it's the error we threw from the 'else' block above, it will have the Web3Forms message
+          throw new Error(emailError.message || "We couldn't send your email. Please check your internet connection or try again later.");
         }
       } else {
         throw new Error("Email service is not configured. Please contact the administrator.");

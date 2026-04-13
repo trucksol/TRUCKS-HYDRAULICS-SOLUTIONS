@@ -1788,19 +1788,37 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
           Always encourage them to 'Request a Quote' for official pricing and availability.
           Keep responses concise and focused on industrial hydraulic solutions.`,
         },
-        // Only include history if there are messages beyond the initial greeting
         history: messages.length > 1 ? messages.map(m => ({
           role: m.role,
           parts: [{ text: m.text }]
         })) : []
       });
 
-      const result = await chat.sendMessage({
+      // Add a placeholder message for the model response
+      setMessages(prev => [...prev, { role: 'model', text: '' }]);
+      
+      const stream = await chat.sendMessageStream({
         message: userMessage
       });
 
-      const modelResponse = result.text || "I'm sorry, I couldn't process that request. Please try again or contact our support team.";
-      setMessages(prev => [...prev, { role: 'model', text: modelResponse }]);
+      let fullResponse = "";
+      for await (const chunk of stream) {
+        const chunkText = chunk.text || "";
+        fullResponse += chunkText;
+        setMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = { role: 'model', text: fullResponse };
+          return newMessages;
+        });
+      }
+
+      if (!fullResponse) {
+        setMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = { role: 'model', text: "I'm sorry, I couldn't process that request. Please try again or contact our support team." };
+          return newMessages;
+        });
+      }
     } catch (error: any) {
       console.error("Chat error:", error);
       let errorMessage = "I'm experiencing some technical difficulties. Please use our contact form or WhatsApp for urgent enquiries.";

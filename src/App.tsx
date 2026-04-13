@@ -1779,16 +1779,12 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
     try {
       const ai = getAI();
       const chat = ai.chats.create({
-        model: "gemini-3-flash-preview",
+        model: "gemini-1.5-flash",
         config: {
-          systemInstruction: `You are the TRUCKS & HYDRAULICS SOLUTIONS Expert Assistant. Your goal is to help users find hydraulic spare parts, identify components from descriptions, check stock (simulated), and provide technical support. 
-          You are professional, authoritative, and helpful. 
-          You know about brands like Rexroth, Danfoss, Parker, Vickers, and Eaton. 
-          If a user asks for a part you don't know, ask for the part number or a photo. 
-          Always encourage them to 'Request a Quote' for official pricing and availability.
-          Keep responses concise and focused on industrial hydraulic solutions.`,
+          systemInstruction: `You are the TRUCKS & HYDRAULICS SOLUTIONS Expert. Help users find hydraulic parts (Rexroth, Danfoss, Parker, Vickers, Eaton). Be professional, concise, and authoritative.`,
         },
-        history: messages.length > 1 ? messages.map(m => ({
+        // Limit history to last 6 messages for speed
+        history: messages.length > 1 ? messages.slice(-6).map(m => ({
           role: m.role,
           parts: [{ text: m.text }]
         })) : []

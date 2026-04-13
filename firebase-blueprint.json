@@ -99,6 +99,7 @@
         "partDetails": { "type": "string" },
         "quantity": { "type": "number" },
         "urgency": { "type": "string" },
+        "attachmentUrl": { "type": "string", "description": "Link to uploaded nameplate or photo" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["fullName", "email", "partDetails", "quantity", "createdAt"]

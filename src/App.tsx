@@ -60,7 +60,8 @@ import {
   orderBy,
   getDocFromServer
 } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth, db, storage } from './firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Fuse from 'fuse.js';
 
 // --- Gemini Initialization ---
@@ -224,8 +225,13 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
+      if (error.code === 'auth/unauthorized-domain') {
+        alert("This domain is not authorized for Firebase Authentication. Please add it to the 'Authorized domains' list in your Firebase Console (Authentication > Settings).");
+      } else {
+        alert("Login failed: " + (error.message || "Unknown error"));
+      }
     }
   };
 
@@ -1000,6 +1006,9 @@ const FeaturedProducts = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
 const QuoteForm = () => {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     companyName: '',
@@ -1010,26 +1019,61 @@ const QuoteForm = () => {
     urgency: 'Standard'
   });
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setIsDragging(true);
+    } else if (e.type === 'dragleave') {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setFile(e.dataTransfer.files[0]);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     console.log("Starting quote submission...", formData);
     
     try {
-      // 1. Save to Firestore (Database Backup)
+      let fileUrl = '';
+      
+      // 1. Upload file to Firebase Storage if exists
+      if (file) {
+        console.log("Uploading file to Storage...");
+        const fileRef = ref(storage, `quote-attachments/${Date.now()}_${file.name}`);
+        const uploadResult = await uploadBytes(fileRef, file);
+        fileUrl = await getDownloadURL(uploadResult.ref);
+        console.log("File uploaded successfully:", fileUrl);
+      }
+
+      // 2. Save to Firestore (Database Backup)
       try {
         await addDoc(collection(db, 'quotes'), {
           ...formData,
+          attachmentUrl: fileUrl,
           createdAt: serverTimestamp()
         });
         console.log("Saved to Firestore successfully");
       } catch (fsError) {
         console.error("Firestore save failed:", fsError);
-        // We continue to try email even if Firestore fails, 
-        // but we'll report the error later if both fail.
       }
 
-      // 2. Send Email via Web3Forms (if key is provided)
+      // 3. Send Email via Web3Forms (if key is provided)
       const accessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
       if (accessKey) {
         console.log("Sending email via Web3Forms...");
@@ -1045,6 +1089,7 @@ const QuoteForm = () => {
               subject: `New Quote Request from ${formData.fullName}`,
               from_name: "Trucks & Hydraulics Website",
               ...formData,
+              attachment: fileUrl
             }),
           });
           const result = await response.json();
@@ -1056,12 +1101,11 @@ const QuoteForm = () => {
         } catch (emailError) {
           console.error("Email service error:", emailError);
         }
-      } else {
-        console.log("No Web3Forms key found, skipping email.");
       }
 
       setIsSubmitting(false);
       setSubmitted(true);
+      setFile(null);
       setFormData({
         fullName: '',
         companyName: '',
@@ -1205,9 +1249,39 @@ const QuoteForm = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Upload Nameplate/Photos (Optional)</label>
-                  <div className="border-2 border-dashed border-white/10 rounded-sm p-6 text-center hover:border-industrial-green transition-all cursor-pointer group">
-                    <Upload className="w-8 h-8 mx-auto mb-2 text-gray-500 group-hover:text-industrial-green" />
-                    <span className="text-sm text-gray-500 group-hover:text-gray-300">Click to upload or drag and drop</span>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden" 
+                    accept="image/*,.pdf"
+                  />
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-sm p-6 text-center transition-all cursor-pointer group ${
+                      isDragging ? 'border-industrial-green bg-industrial-green/5' : 'border-white/10 hover:border-industrial-green'
+                    }`}
+                  >
+                    <Upload className={`w-8 h-8 mx-auto mb-2 transition-colors ${
+                      file || isDragging ? 'text-industrial-green' : 'text-gray-500 group-hover:text-industrial-green'
+                    }`} />
+                    <span className={`text-sm transition-colors ${
+                      file || isDragging ? 'text-gray-200' : 'text-gray-500 group-hover:text-gray-300'
+                    }`}>
+                      {file ? `Selected: ${file.name}` : 'Click to upload or drag and drop'}
+                    </span>
+                    {file && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                        className="block mx-auto mt-2 text-xs text-red-500 hover:text-red-400 font-bold uppercase tracking-tighter"
+                      >
+                        Remove File
+                      </button>
+                    )}
                   </div>
                 </div>
                 <button 

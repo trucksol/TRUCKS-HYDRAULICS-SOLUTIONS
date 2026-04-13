@@ -68,11 +68,16 @@ let aiInstance: GoogleGenAI | null = null;
 
 const getAI = () => {
   if (!aiInstance) {
-    // These are replaced at build time by vite.config.ts
-    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    // 1. Try Vite's standard way (VITE_ prefix is required for client-side exposure in Vite)
+    let apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    
+    // 2. Fallback to the replaced process.env variables (from vite.config.ts)
+    if (!apiKey || apiKey === "undefined" || apiKey === "null") {
+      apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    }
 
     if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey === "MY_GEMINI_API_KEY") {
-      console.error("GEMINI_API_KEY is missing in the build.");
+      console.error("GEMINI_API_KEY is missing in the build. Please ensure VITE_GEMINI_API_KEY is set in Vercel.");
       throw new Error("MISSING_API_KEY");
     }
     aiInstance = new GoogleGenAI({ apiKey });

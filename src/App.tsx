@@ -86,6 +86,11 @@ const getAI = () => {
       console.error("GEMINI_API_KEY is missing in the build. Please ensure VITE_GEMINI_API_KEY is set in Vercel.");
       throw new Error("MISSING_API_KEY");
     }
+
+    if (apiKey.includes("VITE_GEMINI_API_KEY")) {
+      console.error("GEMINI_API_KEY appears to be the variable NAME instead of the VALUE.");
+      throw new Error("INVALID_KEY_VALUE");
+    }
     aiInstance = new GoogleGenAI({ apiKey });
   }
   return aiInstance;
@@ -1801,7 +1806,9 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
       let errorMessage = "I'm experiencing some technical difficulties. Please use our contact form or WhatsApp for urgent enquiries.";
       
       if (error.message === "MISSING_API_KEY") {
-        errorMessage = "Technical Error: API Key is missing. Please ensure VITE_GEMINI_API_KEY is set in your environment variables.";
+        errorMessage = "Technical Error: API Key is missing. Please ensure VITE_GEMINI_API_KEY is set in Vercel and then REDEPLOY.";
+      } else if (error.message === "INVALID_KEY_VALUE") {
+        errorMessage = "Technical Error: It looks like you pasted the variable NAME (VITE_GEMINI_API_KEY) into Vercel instead of the actual API Key VALUE (the long string starting with AIza).";
       } else if (error.message?.includes("API_KEY_INVALID")) {
         errorMessage = "Technical Error: The provided API Key is invalid. Please check your Gemini API key.";
       }

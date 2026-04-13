@@ -10,6 +10,14 @@ export default defineConfig(({mode}) => {
   // Capture the key from any possible source during build
   const GEMINI_KEY = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
 
+  console.log('--- Build Environment Check ---');
+  console.log('VITE_GEMINI_API_KEY found in env:', !!env.VITE_GEMINI_API_KEY);
+  console.log('GEMINI_API_KEY found in env:', !!env.GEMINI_API_KEY);
+  console.log('VITE_GEMINI_API_KEY found in process.env:', !!process.env.VITE_GEMINI_API_KEY);
+  console.log('GEMINI_API_KEY found in process.env:', !!process.env.GEMINI_API_KEY);
+  console.log('Final GEMINI_KEY length:', GEMINI_KEY.length);
+  console.log('-------------------------------');
+
   return {
     plugins: [react(), tailwindcss()],
     define: {

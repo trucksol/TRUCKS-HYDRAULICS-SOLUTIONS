@@ -99,7 +99,7 @@
         "partDetails": { "type": "string" },
         "quantity": { "type": "number" },
         "urgency": { "type": "string" },
-        "attachmentUrl": { "type": "string", "description": "Link to uploaded nameplate or photo" },
+        "hasAttachment": { "type": "boolean", "description": "Whether a photo was included in the email" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["fullName", "email", "partDetails", "quantity", "createdAt"]

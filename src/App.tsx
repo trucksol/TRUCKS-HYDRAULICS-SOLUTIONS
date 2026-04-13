@@ -1050,60 +1050,58 @@ const QuoteForm = () => {
     console.log("Starting quote submission...", formData);
     
     try {
-      let fileUrl = '';
-      
-      // 1. Upload file to Firebase Storage if exists
-      if (file) {
-        console.log("Uploading file to Storage...");
-        const fileRef = ref(storage, `quote-attachments/${Date.now()}_${file.name}`);
-        const uploadResult = await uploadBytes(fileRef, file);
-        fileUrl = await getDownloadURL(uploadResult.ref);
-        console.log("File uploaded successfully:", fileUrl);
-      }
-
-      // 2. Save to Firestore (Database Backup)
+      // 1. Save to Firestore (Database Backup - Text only)
       try {
         await addDoc(collection(db, 'quotes'), {
           ...formData,
-          attachmentUrl: fileUrl,
+          hasAttachment: !!file,
           createdAt: serverTimestamp()
         });
         console.log("Saved to Firestore successfully");
-      } catch (fsError) {
+      } catch (fsError: any) {
         console.error("Firestore save failed:", fsError);
       }
 
-      // 3. Send Email via Web3Forms (if key is provided)
+      // 2. Send Email via Web3Forms (Direct Upload)
       const accessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
       if (accessKey) {
-        console.log("Sending email via Web3Forms...");
+        console.log("Sending enquiry via Web3Forms...");
         try {
+          const web3FormData = new FormData();
+          web3FormData.append("access_key", accessKey);
+          web3FormData.append("subject", `New Quote Request from ${formData.fullName}`);
+          web3FormData.append("from_name", "Trucks & Hydraulics Website");
+          
+          // Append all form fields
+          Object.entries(formData).forEach(([key, value]) => {
+            web3FormData.append(key, value.toString());
+          });
+
+          // Append file if exists
+          if (file) {
+            web3FormData.append("attachment", file);
+          }
+
           const response = await fetch("https://api.web3forms.com/submit", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-            body: JSON.stringify({
-              access_key: accessKey,
-              subject: `New Quote Request from ${formData.fullName}`,
-              from_name: "Trucks & Hydraulics Website",
-              ...formData,
-              attachment: fileUrl
-            }),
+            body: web3FormData
           });
+          
           const result = await response.json();
           if (result.success) {
-            console.log("Email sent successfully");
+            console.log("Enquiry sent successfully");
           } else {
             console.warn("Web3Forms submission failed:", result);
+            throw new Error(result.message || "Email delivery failed");
           }
-        } catch (emailError) {
+        } catch (emailError: any) {
           console.error("Email service error:", emailError);
+          throw new Error("We couldn't send your email. Please try again or use WhatsApp.");
         }
+      } else {
+        throw new Error("Email service is not configured. Please contact the administrator.");
       }
 
-      setIsSubmitting(false);
       setSubmitted(true);
       setFile(null);
       setFormData({
@@ -1115,11 +1113,11 @@ const QuoteForm = () => {
         quantity: 1,
         urgency: 'Standard'
       });
-    } catch (error) {
-      const firestoreError = handleFirestoreError(error, OperationType.CREATE, 'quotes');
-      console.error("Submission error:", firestoreError);
+    } catch (error: any) {
+      console.error("Submission error:", error);
+      alert(error.message || "There was an error submitting your request. Please check your internet connection and try again.");
+    } finally {
       setIsSubmitting(false);
-      alert("There was an error submitting your request. Please check your internet connection and try again, or contact us via WhatsApp.");
     }
   };
 

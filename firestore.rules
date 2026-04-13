@@ -151,7 +151,7 @@ service cloud.firestore {
     }
 
     function isValidQuote(data) {
-      return hasOnlyAllowedFields(['fullName', 'companyName', 'email', 'phone', 'partDetails', 'quantity', 'urgency', 'createdAt', 'attachmentUrl']) &&
+      return hasOnlyAllowedFields(['fullName', 'companyName', 'email', 'phone', 'partDetails', 'quantity', 'urgency', 'createdAt', 'hasAttachment']) &&
              data.fullName is string && data.fullName.size() > 0 &&
              data.email is string && isValidEmail(data.email) &&
              data.partDetails is string &&

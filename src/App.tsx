@@ -68,9 +68,21 @@ let aiInstance: GoogleGenAI | null = null;
 
 const getAI = () => {
   if (!aiInstance) {
-    const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    let apiKey = '';
+    try {
+      // Try process.env first (for environments that polyfill it)
+      apiKey = (process as any).env.GEMINI_API_KEY;
+    } catch (e) {
+      // process might not be defined in standard Vite browser builds
+    }
+    
+    // Fallback to Vite's import.meta.env
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not set. Please configure it in your environment variables.");
+      apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    }
+
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not set. Please configure VITE_GEMINI_API_KEY in your environment variables.");
     }
     aiInstance = new GoogleGenAI({ apiKey });
   }
@@ -1760,7 +1772,7 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
     try {
       const ai = getAI();
       const chat = ai.chats.create({
-        model: "gemini-3-flash-preview",
+        model: "gemini-flash-latest",
         config: {
           systemInstruction: `You are the TRUCKS & HYDRAULICS SOLUTIONS Expert Assistant. Your goal is to help users find hydraulic spare parts, identify components from descriptions, check stock (simulated), and provide technical support. 
           You are professional, authoritative, and helpful. 

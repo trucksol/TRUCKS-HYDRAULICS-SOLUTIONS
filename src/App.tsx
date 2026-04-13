@@ -346,9 +346,12 @@ const Header = ({
               <div className="flex items-center gap-4">
                 <button 
                   onClick={onOpenDashboard}
-                  className="hidden sm:flex items-center gap-2 text-sm font-bold uppercase tracking-widest hover:text-industrial-green transition-colors"
+                  className={`hidden sm:flex items-center gap-2 text-sm font-bold uppercase tracking-widest transition-colors ${
+                    profile?.role === 'admin' ? 'text-industrial-green border border-industrial-green/30 px-3 py-1.5 rounded-sm bg-industrial-green/5 hover:bg-industrial-green hover:text-deep-charcoal' : 'hover:text-industrial-green'
+                  }`}
                 >
-                  <Bot className="w-4 h-4" /> My Account
+                  {profile?.role === 'admin' ? <Settings className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                  {profile?.role === 'admin' ? 'Admin Dashboard' : 'My Account'}
                 </button>
                 <button 
                   onClick={logout}

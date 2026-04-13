@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://trucks-hydraulics.com/sitemap.xml
+Sitemap: https://trucksol.com/sitemap.xml

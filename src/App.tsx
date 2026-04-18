@@ -465,7 +465,7 @@ const Hero = () => {
               whileInView={{ opacity: 1, x: 0 }}
               className="text-industrial-green font-display font-bold tracking-[0.3em] uppercase text-lg mb-4"
             >
-              Leading Hydraulic Systems Supplier
+              #1 Hydraulic Spare Parts Supplier in Saudi Arabia
             </motion.div>
             <motion.h1 
               className="text-5xl md:text-6xl font-bold leading-tight mb-8"
@@ -473,8 +473,8 @@ const Hero = () => {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              The Parts You Need. <br />
-              <span className="text-industrial-green">When You Need Them.</span>
+              Premium Hydraulic Parts. <br />
+              <span className="text-industrial-green">Distributing Across KSA.</span>
             </motion.h1>
             
             <div className="space-y-6 mb-12 max-w-2xl relative z-10">
@@ -2141,6 +2141,36 @@ const Footer = () => {
             <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
           </div>
         </div>
+
+        {/* SEO Location Footer */}
+        <div className="pt-12 pb-20 border-t border-white/5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div>
+              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Locations Served</h5>
+              <p className="text-[10px] text-gray-600 leading-relaxed uppercase tracking-widest">
+                Hydraulic Spare Parts Riyadh • Hydraulic Solutions Jeddah • Components Supplier Dammam • Industrial Parts Al Khobar • Sourcing Jubail • Machinery Parts Yanbu • Manufacturing Tabuk.
+              </p>
+            </div>
+            <div>
+              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Industries</h5>
+              <p className="text-[10px] text-gray-600 leading-relaxed uppercase tracking-widest">
+                Oil & Gas Hydraulics • Construction Machinery KSA • Mining Equipment Spare Parts • Agricultural Hydraulic Systems • Marine Fluid Power • Waste Management Trucks.
+              </p>
+            </div>
+            <div>
+              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Manufacturer Support</h5>
+              <p className="text-[10px] text-gray-600 leading-relaxed uppercase tracking-widest">
+                Rexroth Bosch Parts • Danfoss Power Solutions • Parker Hannifin Components • Vickers / Eaton Hydraulics • Kawasaki Pumps • Casappa Motors.
+              </p>
+            </div>
+            <div>
+              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Service Area</h5>
+              <p className="text-[10px] text-gray-600 leading-relaxed uppercase tracking-widest">
+                We are a leading Hydraulic Spare Parts Supplier across the Kingdom of Saudi Arabia, providing door-to-door delivery and technical support for all industrial hydraulic systems.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </footer>
   );
@@ -2296,17 +2326,17 @@ export default function App() {
 
   useEffect(() => {
     // SEO & Meta Tags
-    document.title = "TRUCKS & HYDRAULICS SOLUTIONS | Genuine Hydraulic Spare Parts & OEM Components";
+    document.title = "#1 Hydraulic Spare Parts Supplier Saudi Arabia | Pumps, Valves, Motors KSA";
     
     // Add JSON-LD Schema
     const script = document.createElement('script');
     script.type = 'application/ld+json';
     script.text = JSON.stringify({
       "@context": "https://schema.org",
-      "@type": "LocalBusiness",
+      "@type": "WholesaleStore",
       "name": "TRUCKS & HYDRAULICS SOLUTIONS",
-      "image": "https://picsum.photos/seed/trucks-hydraulics-logo/800/600",
-      "description": "Leading supplier of genuine and OEM-compatible hydraulic spare parts for industrial and construction machinery.",
+      "image": "https://trucksol.com/LOGO.png",
+      "description": "Premium Hydraulic Spare Parts Supplier in Saudi Arabia. Leading distributor of Rexroth, Danfoss, Parker, and Vickers hydraulic components for industrial, construction, and marine sectors.",
       "address": {
         "@type": "PostalAddress",
         "streetAddress": "Al Nimer Center, Musa Bin Nusair Street, Al Olaya District",

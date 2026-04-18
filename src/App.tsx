@@ -36,7 +36,8 @@ import {
   Send,
   Bot,
   MessageSquare,
-  Loader2
+  Loader2,
+  Globe
 } from 'lucide-react';
 import { motion, AnimatePresence, useScroll, useSpring, useInView } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
@@ -63,6 +64,47 @@ import {
 import { auth, db, storage } from './firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Fuse from 'fuse.js';
+import { Language, translations, Translations } from './translations';
+
+// --- Language Context ---
+interface LanguageContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: Translations;
+}
+
+const LanguageContext = React.createContext<LanguageContextType>({
+  language: 'en',
+  setLanguage: () => {},
+  t: translations.en
+});
+
+const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [language, setLanguage] = useState<Language>(() => {
+    const saved = localStorage.getItem('language');
+    return (saved as Language) || 'en';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('language', language);
+    document.documentElement.lang = language;
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+  }, [language]);
+
+  const value = {
+    language,
+    setLanguage,
+    t: translations[language]
+  };
+
+  return (
+    <LanguageContext.Provider value={value}>
+      {children}
+    </LanguageContext.Provider>
+  );
+};
+
+const useTranslation = () => React.useContext(LanguageContext);
 
 // --- Gemini Initialization ---
 let aiInstance: GoogleGenAI | null = null;
@@ -294,6 +336,7 @@ const Header = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, profile, login, logout } = React.useContext(AuthContext);
+  const { language, setLanguage, t } = useTranslation();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -302,11 +345,11 @@ const Header = ({
   }, []);
 
   const navLinks = [
-    { name: 'Products', href: '#products' },
-    { name: 'Brands', href: '#brands' },
-    { name: 'Industries', href: '#industries' },
-    { name: 'About Us', href: '#home' },
-    { name: 'Contact', href: '#contact' },
+    { name: t.nav.products, href: '#products' },
+    { name: t.nav.brands, href: '#brands' },
+    { name: t.nav.industries, href: '#industries' },
+    { name: t.nav.about, href: '#home' },
+    { name: t.nav.contact, href: '#contact' },
   ];
 
   return (
@@ -333,7 +376,17 @@ const Header = ({
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Language Switcher */}
+            <button 
+              onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-sm border border-white/10 hover:border-industrial-green transition-all text-xs font-bold uppercase tracking-wider"
+              title={language === 'en' ? 'Switch to Arabic' : 'تغيير إلى الإنجليزية'}
+            >
+              <Globe className="w-4 h-4 text-industrial-green" />
+              <span>{language === 'en' ? 'العربية' : 'EN'}</span>
+            </button>
+
             <button 
               onClick={onOpenSearch}
               className="p-2 hover:text-industrial-green transition-colors" 
@@ -351,13 +404,13 @@ const Header = ({
                   }`}
                 >
                   {profile?.role === 'admin' ? <Settings className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-                  {profile?.role === 'admin' ? 'Admin Dashboard' : 'My Account'}
+                  {profile?.role === 'admin' ? t.nav.adminDashboard : t.nav.myAccount}
                 </button>
                 <button 
                   onClick={logout}
                   className="hidden sm:block text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-white transition-colors"
                 >
-                  Logout
+                  {t.nav.logout}
                 </button>
               </div>
             ) : (
@@ -365,7 +418,7 @@ const Header = ({
                 onClick={login}
                 className="hidden sm:block bg-industrial-green text-deep-charcoal px-6 py-2.5 rounded-sm font-display font-bold uppercase tracking-wider hover:bg-white transition-all active:scale-95"
               >
-                Login
+                {t.nav.login}
               </button>
             )}
 
@@ -449,6 +502,7 @@ const Header = ({
 };
 
 const Hero = () => {
+  const { t } = useTranslation();
   return (
     <section id="home" className="relative min-h-[90vh] flex flex-col overflow-hidden brushed-metal">
       <div className="container mx-auto px-4 py-20 relative z-10 flex-grow flex items-center">
@@ -465,7 +519,7 @@ const Hero = () => {
               whileInView={{ opacity: 1, x: 0 }}
               className="text-industrial-green font-display font-bold tracking-[0.3em] uppercase text-lg mb-4"
             >
-              #1 Hydraulic Spare Parts Supplier in Saudi Arabia
+              {t.hero.badge}
             </motion.div>
             <motion.h1 
               className="text-5xl md:text-6xl font-bold leading-tight mb-8"
@@ -473,8 +527,8 @@ const Hero = () => {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              Premium Hydraulic Parts. <br />
-              <span className="text-industrial-green">Distributing Across KSA.</span>
+              {t.hero.title} <br />
+              <span className="text-industrial-green">{t.hero.titleAccent}</span>
             </motion.h1>
             
             <div className="space-y-6 mb-12 max-w-2xl relative z-10">
@@ -484,7 +538,7 @@ const Hero = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                Trucks and Hydraulic Solutions, as a leader in hydraulic systems and components, offers high quality and reliable products. With our wide range of products, we provide the most suitable solutions for your industrial needs. We are at your service with our various products such as hydraulic pumps and spare parts, Hydraulic mini power packs, hydraulic motors, monoblock and sectional control valves, Hydraulic Seals, Hydraulic inline valves and more…
+                {t.hero.subtitle}
               </motion.p>
               
               <motion.ul 
@@ -495,15 +549,15 @@ const Hero = () => {
               >
                 <li className="flex items-start gap-3">
                   <span className="text-industrial-green mt-1">•</span>
-                  <span>We provide hydraulic solutions for agricultural, industrial, and mobile applications.</span>
+                  <span>{t.hero.list1}</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-industrial-green mt-1">•</span>
-                  <span>We offer a variety of components used in numerous fluid power systems as complete sets.</span>
+                  <span>{t.hero.list2}</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-industrial-green mt-1">•</span>
-                  <span>In response to market needs, we continue to supply new products in collaboration with leading manufacturers, without compromising our principles of quality.</span>
+                  <span>{t.hero.list3}</span>
                 </li>
               </motion.ul>
             </div>
@@ -515,10 +569,10 @@ const Hero = () => {
               transition={{ delay: 0.6 }}
             >
               <a href="#products" className="w-full sm:w-auto text-center bg-industrial-green text-deep-charcoal px-10 py-4 rounded-sm font-display font-bold uppercase tracking-widest hover:bg-white transition-all shadow-xl hover:shadow-industrial-green/40 active:scale-95 text-lg">
-                Browse Catalogue
+                {t.hero.ctaCatalog}
               </a>
               <a href="#quote" className="w-full sm:w-auto text-center border-2 border-white text-white px-10 py-4 rounded-sm font-display font-bold uppercase tracking-widest hover:bg-white hover:text-deep-charcoal transition-all active:scale-95 text-lg">
-                Request a Quote
+                {t.hero.ctaQuote}
               </a>
             </motion.div>
           </motion.div>
@@ -579,15 +633,16 @@ const Hero = () => {
 };
 
 const Categories = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
-  const categories = [
-    { name: "Hydraulic Pumps", icon: <Zap />, desc: "Piston, Vane, and Gear pumps for all applications." },
-    { name: "Hydraulic Motors", icon: <Activity />, desc: "High-torque, low-speed and high-speed options." },
-    { name: "Cylinders & Rams", icon: <Layers />, desc: "Standard and custom-built hydraulic cylinders." },
-    { name: "Control Valves", icon: <Filter />, desc: "Directional, pressure, and flow control solutions." },
-    { name: "Seals & O-Rings", icon: <Droplets />, desc: "High-performance sealing kits for all brands." },
-    { name: "Hoses & Fittings", icon: <Cpu />, desc: "Custom hose assemblies and industrial fittings." },
-    { name: "Hydraulic Filters", icon: <Filter />, desc: "Suction, pressure, and return line filtration." },
-    { name: "Power Units", icon: <Settings />, desc: "Complete hydraulic power pack systems." },
+  const { t } = useTranslation();
+  const categoriesList = [
+    { name: t.categories.pumps, icon: <Zap />, desc: t.categories.pumpsDesc },
+    { name: t.categories.motors, icon: <Activity />, desc: t.categories.motorsDesc },
+    { name: t.categories.cylinders, icon: <Layers />, desc: t.categories.cylindersDesc },
+    { name: t.categories.valves, icon: <Filter />, desc: t.categories.valvesDesc },
+    { name: t.categories.seals, icon: <Droplets />, desc: t.categories.sealsDesc },
+    { name: t.categories.hoses, icon: <Cpu />, desc: t.categories.hosesDesc },
+    { name: t.categories.filters, icon: <Filter />, desc: t.categories.filtersDesc },
+    { name: t.categories.powerUnits, icon: <Settings />, desc: t.categories.powerUnitsDesc },
   ];
 
   return (
@@ -600,13 +655,13 @@ const Categories = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
             viewport={{ once: true }}
             className="text-4xl md:text-5xl font-bold mb-4"
           >
-            Browse by <span className="text-industrial-green">Category</span>
+            {t.categories.title} <span className="text-industrial-green">{t.categories.titleAccent}</span>
           </motion.h2>
           <div className="w-20 h-1 bg-industrial-green mx-auto"></div>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {categories.map((cat, i) => (
+          {categoriesList.map((cat, i) => (
             <motion.div 
               key={i}
               initial={{ opacity: 0, y: 20 }}
@@ -625,7 +680,7 @@ const Categories = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
                 onClick={onOpenSearch}
                 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-industrial-green group-hover:gap-4 transition-all"
               >
-                View Parts <ArrowRight className="w-4 h-4" />
+                {t.categories.viewParts} <ArrowRight className="w-4 h-4" />
               </button>
             </motion.div>
           ))}
@@ -636,7 +691,7 @@ const Categories = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
             onClick={onOpenSearch}
             className="inline-flex items-center gap-2 text-lg font-display font-bold uppercase tracking-widest hover:text-industrial-green transition-colors group"
           >
-            View Full Catalogue <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+            {t.categories.viewCatalogue} <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
           </button>
         </div>
       </div>
@@ -720,20 +775,21 @@ const BrandsTicker = () => {
 };
 
 const Industries = () => {
+  const { t } = useTranslation();
   const industries = [
-    { name: "Construction & Excavation", desc: "Heavy-duty pumps and motors for earthmoving equipment.", img: "/construction.png" },
-    { name: "Agriculture & Farming", desc: "Reliable components for tractors, harvesters, and irrigation.", img: "/farming3.png" },
-    { name: "Industrial Manufacturing", desc: "Precision hydraulics for factory automation and presses.", img: "/industrial.png" },
-    { name: "Marine & Offshore", desc: "Corrosion-resistant parts for winches and steering systems.", img: "/marine.png" },
-    { name: "Mining & Quarrying", desc: "Rugged solutions for extreme environments and high loads.", img: "/mining2.png" },
-    { name: "Forestry & Logging", desc: "Specialized components for feller bunchers and forwarders.", img: "/forest.png" },
+    { name: t.industriesSection.ind1, desc: t.industriesSection.ind1Desc, img: "/construction.png" },
+    { name: t.industriesSection.ind2, desc: t.industriesSection.ind2Desc, img: "/farming3.png" },
+    { name: t.industriesSection.ind3, desc: t.industriesSection.ind3Desc, img: "/industrial.png" },
+    { name: t.industriesSection.ind4, desc: t.industriesSection.ind4Desc, img: "/marine.png" },
+    { name: t.industriesSection.ind5, desc: t.industriesSection.ind5Desc, img: "/mining2.png" },
+    { name: t.industriesSection.ind6, desc: t.industriesSection.ind6Desc, img: "/forest.png" },
   ];
 
   return (
     <section id="industries" className="py-24 bg-steel-gray">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">Built for the Industries That <span className="text-industrial-green">Can't Afford Downtime</span></h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4">{t.industriesSection.title} <span className="text-industrial-green">{t.industriesSection.titleAccent}</span></h2>
           <div className="w-20 h-1 bg-industrial-green mx-auto"></div>
         </div>
 
@@ -766,11 +822,12 @@ const Industries = () => {
 };
 
 const HowItWorks = () => {
+  const { t } = useTranslation();
   const steps = [
-    { title: "Search Part Number", desc: "Use our search tool or browse by category to find your specific component." },
-    { title: "Get Quote in 2 Hours", desc: "Our experts verify stock and provide a competitive quote within 120 minutes." },
-    { title: "Confirm & Pay", desc: "Secure B2B payment options including bank transfer and major cards." },
-    { title: "Dispatched Same Day", desc: "Orders confirmed before 2pm are shipped the same business day." },
+    { title: t.howItWorks.step1, desc: t.howItWorks.step1Desc },
+    { title: t.howItWorks.step2, desc: t.howItWorks.step2Desc },
+    { title: t.howItWorks.step3, desc: t.howItWorks.step3Desc },
+    { title: t.howItWorks.step4, desc: t.howItWorks.step4Desc },
   ];
 
   return (
@@ -779,12 +836,12 @@ const HowItWorks = () => {
         {/* Global Shipping Badge Section */}
         <div className="mb-24 flex flex-col lg:flex-row items-center gap-12 bg-steel-gray/30 p-8 rounded-sm border border-white/5">
           <div className="lg:w-1/2">
-            <h3 className="text-3xl font-bold mb-4">Worldwide <span className="text-industrial-green">Logistics Network</span></h3>
+            <h3 className="text-3xl font-bold mb-4">{t.howItWorks.logisticsTitle} <span className="text-industrial-green">{t.howItWorks.logisticsAccent}</span></h3>
             <p className="text-gray-400 mb-6 leading-relaxed">
-              Our strategic location and partnership with global carriers and manufacturers allow us to dispatch critical hydraulic components to any industrial hub. We also handle all customs documentation for a hassle-free experience in Saudi Arabia and Jordan.
+              {t.howItWorks.logisticsDesc}
             </p>
             <div className="flex items-center gap-4 text-industrial-green font-bold uppercase tracking-widest text-sm">
-              <Truck className="w-6 h-6" /> Express Air Freight Available
+              <Truck className="w-6 h-6" /> {t.howItWorks.shipping}
             </div>
           </div>
           <div className="lg:w-1/2 relative">
@@ -797,14 +854,14 @@ const HowItWorks = () => {
               />
               <div className="absolute -bottom-6 -right-6 bg-industrial-green text-deep-charcoal p-6 rounded-sm font-display font-bold shadow-2xl">
                 <span className="block text-4xl">24H</span>
-                <span className="text-sm uppercase tracking-tighter">Global Shipping</span>
+                <span className="text-sm uppercase tracking-tighter">{t.howItWorks.logisticsBadge}</span>
               </div>
             </div>
           </div>
         </div>
 
         <div className="text-center mb-20">
-          <h2 className="text-4xl font-bold mb-4">Simple Ordering. <span className="text-industrial-green">Fast Delivery.</span></h2>
+          <h2 className="text-4xl font-bold mb-4">{t.howItWorks.title} <span className="text-industrial-green">{t.howItWorks.titleAccent}</span></h2>
           <div className="w-20 h-1 bg-industrial-green mx-auto"></div>
         </div>
 
@@ -832,8 +889,8 @@ const HowItWorks = () => {
 
         <div className="mt-24 bg-steel-gray p-8 md:p-12 rounded-sm border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8">
           <div>
-            <h3 className="text-2xl font-bold mb-2">Need help identifying a part?</h3>
-            <p className="text-gray-400">Send us photos of the nameplate or the component via WhatsApp.</p>
+            <h3 className="text-2xl font-bold mb-2">{t.howItWorks.helpTitle}</h3>
+            <p className="text-gray-400">{t.howItWorks.helpDesc}</p>
           </div>
           <a 
             href="https://wa.me/966567423310" 
@@ -842,7 +899,7 @@ const HowItWorks = () => {
             className="flex items-center gap-3 bg-[#25D366] text-white px-8 py-4 rounded-sm font-bold uppercase tracking-widest hover:bg-[#128C7E] transition-all shadow-lg"
           >
             <MessageCircle className="w-6 h-6" />
-            Chat on WhatsApp
+            {t.howItWorks.whatsapp}
           </a>
         </div>
       </div>
@@ -851,27 +908,22 @@ const HowItWorks = () => {
 };
 
 const StatsAndTestimonials = () => {
+  const { t } = useTranslation();
   const [hasStarted, setHasStarted] = useState(false);
   const statsRef = useRef(null);
   const isInView = useInView(statsRef, { once: true });
 
-  const stats = [
-    { label: "Orders Shipped", value: 4800, suffix: "+" },
-    { label: "On-Time Delivery", value: 98, suffix: "%" },
-    { label: "Active B2B Accounts", value: 200, suffix: "+" },
-    { label: "Years in Industry", value: 9, suffix: "" },
+  const statsList = [
+    { label: t.stats.orders, value: 4800, suffix: "+" },
+    { label: t.stats.delivery, value: 98, suffix: "%" },
+    { label: t.stats.accounts, value: 200, suffix: "+" },
+    { label: t.stats.years, value: 9, suffix: "" },
   ];
 
   const testimonials = [
-    {
-      quote: "TRUCKS & HYDRAULICS SOLUTIONS saved us from a week of downtime. They had a rare Rexroth pump in stock and shipped it within hours.",
-    },
-    {
-      quote: "The technical support is unmatched. They helped us identify an obsolete part and suggested a perfect OEM-compatible alternative.",
-    },
-    {
-      quote: "Reliable, fast, and professional. Our primary supplier for all hydraulic needs across our maintenance operations.",
-    },
+    { quote: t.stats.t1 },
+    { quote: t.stats.t2 },
+    { quote: t.stats.t3 },
   ];
 
   return (
@@ -879,7 +931,7 @@ const StatsAndTestimonials = () => {
       <div className="container mx-auto px-4">
         {/* Stats Bar */}
         <div ref={statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-24">
-          {stats.map((stat, i) => (
+          {statsList.map((stat, i) => (
             <div key={i} className="text-center">
               <div className="text-5xl md:text-6xl font-display font-bold text-industrial-green mb-2">
                 {isInView ? (
@@ -947,6 +999,7 @@ const Counter = ({ from, to, duration, suffix = "" }: { from: number, to: number
 };
 
 const FeaturedProducts = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
+  const { t } = useTranslation();
   const products = [
     { name: "A10VSO Piston Pump", pn: "R902401542", brand: "Rexroth", img: "/a10vso.png" },
     { name: "OMR & OMP Orbital Motors", pn: "151G0004", brand: "Danfoss", img: "/omr.png" },
@@ -959,14 +1012,14 @@ const FeaturedProducts = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
           <div>
-            <h2 className="text-4xl font-bold mb-4">In-Stock & <span className="text-industrial-green">Ready to Ship</span></h2>
+            <h2 className="text-4xl font-bold mb-4">{t.featured.title} <span className="text-industrial-green">{t.featured.titleAccent}</span></h2>
             <div className="w-20 h-1 bg-industrial-green"></div>
           </div>
           <button 
             onClick={onOpenSearch}
             className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-industrial-green hover:gap-4 transition-all"
           >
-            See all available stock <ArrowRight className="w-5 h-5" />
+            {t.featured.allStock} <ArrowRight className="w-5 h-5" />
           </button>
         </div>
 
@@ -985,17 +1038,17 @@ const FeaturedProducts = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute top-4 right-4 bg-green-500 text-white text-[10px] font-bold uppercase px-2 py-1 rounded-sm flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> In Stock
+                  <CheckCircle2 className="w-3 h-3" /> {t.search.inStock}
                 </div>
               </div>
               <div className="p-6">
                 <div className="text-xs text-industrial-green font-bold uppercase tracking-widest mb-2">{p.brand}</div>
                 <h3 className="text-xl font-bold mb-6">{p.name}</h3>
                 <a 
-                  href="#quote"
+                   href="#quote"
                   className="block w-full bg-industrial-green text-deep-charcoal py-3 rounded-sm font-display font-bold uppercase tracking-widest hover:bg-white transition-all text-center"
                 >
-                  Request Quote
+                  {t.featured.requestQuote}
                 </a>
               </div>
             </motion.div>
@@ -1007,6 +1060,7 @@ const FeaturedProducts = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
 };
 
 const QuoteForm = () => {
+  const { t } = useTranslation();
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -1067,7 +1121,7 @@ const QuoteForm = () => {
         
         // Basic check for size (Firestore limit is 1MB per document)
         if (base64Image.length > 1000000) {
-          throw new Error("The photo is too large. Please use a smaller image or a screenshot.");
+          throw new Error(t.quote.errorLargeFile);
         }
       }
 
@@ -1127,7 +1181,7 @@ const QuoteForm = () => {
       });
     } catch (error: any) {
       console.error("Submission error:", error);
-      alert(error.message || "There was an error submitting your request.");
+      alert(error.message || t.quote.errorSubmit);
     } finally {
       setIsSubmitting(false);
     }
@@ -1149,7 +1203,7 @@ const QuoteForm = () => {
           <div className="bg-deep-charcoal p-8 md:p-12 rounded-sm border border-white/5 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-industrial-green"></div>
             
-            <h2 className="text-3xl font-bold mb-8">Request a <span className="text-industrial-green">Fast Quote</span></h2>
+            <h2 className="text-3xl font-bold mb-8">{t.quote.title}</h2>
             
             {submitted ? (
               <motion.div 
@@ -1160,20 +1214,20 @@ const QuoteForm = () => {
                 <div className="w-20 h-20 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto mb-6">
                   <CheckCircle2 size={40} />
                 </div>
-                <h3 className="text-2xl font-bold mb-4">Enquiry Sent Successfully!</h3>
-                <p className="text-gray-400 mb-8">Our team will review your request and get back to you within 2 hours.</p>
+                <h3 className="text-2xl font-bold mb-4">{t.quote.success}</h3>
+                <p className="text-gray-400 mb-8">{t.quote.successDesc}</p>
                 <button 
                   onClick={() => setSubmitted(false)}
                   className="text-industrial-green font-bold uppercase tracking-widest hover:underline"
                 >
-                  Send another request
+                  {t.quote.newEnquiry}
                 </button>
               </motion.div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Full Name</label>
+                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.quote.name}</label>
                     <input 
                       required 
                       name="fullName"
@@ -1184,7 +1238,7 @@ const QuoteForm = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Company Name</label>
+                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.quote.company}</label>
                     <input 
                       required 
                       name="companyName"
@@ -1197,7 +1251,7 @@ const QuoteForm = () => {
                 </div>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Email Address</label>
+                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.quote.email}</label>
                     <input 
                       required 
                       name="email"
@@ -1208,7 +1262,7 @@ const QuoteForm = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Phone Number</label>
+                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.quote.phone}</label>
                     <input 
                       required 
                       name="phone"
@@ -1220,7 +1274,7 @@ const QuoteForm = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Part Number / Description</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.quote.partDetails}</label>
                   <textarea 
                     required 
                     name="partDetails"
@@ -1232,7 +1286,7 @@ const QuoteForm = () => {
                 </div>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Quantity</label>
+                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.quote.quantity}</label>
                     <input 
                       required 
                       name="quantity"
@@ -1244,21 +1298,21 @@ const QuoteForm = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Urgency</label>
+                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.quote.urgency}</label>
                     <select 
                       name="urgency"
                       value={formData.urgency}
                       onChange={handleChange}
                       className="w-full bg-steel-gray border border-white/10 rounded-sm px-4 py-3 focus:border-industrial-green outline-none transition-all appearance-none"
                     >
-                      <option>Standard</option>
-                      <option>Urgent</option>
-                      <option>Emergency (Downtime)</option>
+                      <option value="Standard">{t.quote.urgencyStandard}</option>
+                      <option value="Urgent">{t.quote.urgencyUrgent}</option>
+                      <option value="Emergency (Downtime)">{t.quote.urgencyEmergency}</option>
                     </select>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Upload Nameplate/Photos (Optional)</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.quote.uploadTitle}</label>
                   <input 
                     type="file" 
                     ref={fileInputRef}
@@ -1282,7 +1336,7 @@ const QuoteForm = () => {
                     <span className={`text-sm transition-colors ${
                       file || isDragging ? 'text-gray-200' : 'text-gray-500 group-hover:text-gray-300'
                     }`}>
-                      {file ? `Selected: ${file.name}` : 'Click to upload or drag and drop'}
+                      {file ? `Selected: ${file.name}` : t.quote.uploadDesc}
                     </span>
                     {file && (
                       <button 
@@ -1298,7 +1352,7 @@ const QuoteForm = () => {
                   disabled={isSubmitting}
                   className="w-full bg-industrial-green text-deep-charcoal py-4 rounded-sm font-display font-bold uppercase tracking-widest hover:bg-white transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {isSubmitting ? <div className="w-5 h-5 border-2 border-deep-charcoal border-t-transparent rounded-full animate-spin"></div> : 'Send Enquiry'}
+                  {isSubmitting ? <div className="w-5 h-5 border-2 border-deep-charcoal border-t-transparent rounded-full animate-spin"></div> : t.quote.send}
                 </button>
               </form>
             )}
@@ -1306,9 +1360,9 @@ const QuoteForm = () => {
 
           {/* Contact Info */}
           <div id="contact" className="flex flex-col justify-center">
-            <h2 className="text-4xl font-bold mb-8">Get in <span className="text-industrial-green">Touch</span></h2>
+            <h2 className="text-4xl font-bold mb-8">{t.contact.title}</h2>
             <p className="text-gray-400 mb-12 text-lg leading-relaxed">
-              Our technical team is ready to assist you with part identification, cross-referencing, and urgent sourcing requirements.
+              {t.contact.subtitle}
             </p>
             
             <div className="space-y-8 mb-12">
@@ -1317,7 +1371,7 @@ const QuoteForm = () => {
                   <Phone className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Phone Support</div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">{t.footer.phone}</div>
                   <a href="tel:+966510760770" className="text-xl font-bold hover:text-industrial-green transition-colors">+966 510760770</a>
                 </div>
               </div>
@@ -1342,7 +1396,7 @@ const QuoteForm = () => {
                   <Mail className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Email Enquiry</div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">{t.footer.email}</div>
                   <a href="mailto:info@trucksol.com" className="text-xl font-bold hover:text-industrial-green transition-colors">info@trucksol.com</a>
                 </div>
               </div>
@@ -1351,7 +1405,7 @@ const QuoteForm = () => {
                   <Clock className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Business Hours</div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">{t.footer.hours}</div>
                   <div className="text-lg font-bold text-gray-300">Sat–Thu: 8:00 AM – 6:00 PM</div>
                 </div>
               </div>
@@ -1380,6 +1434,7 @@ const QuoteForm = () => {
 };
 
 const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
+  const { t } = useTranslation();
   const [queryText, setQueryText] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [allProducts, setAllProducts] = useState<any[]>([]);
@@ -1485,7 +1540,7 @@ const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
       
       <div className="relative z-10 container mx-auto px-4 pt-12 flex flex-col h-full max-w-4xl">
         <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-display font-bold uppercase tracking-widest text-industrial-green">Advanced Part Search</h2>
+          <h2 className="text-3xl font-display font-bold uppercase tracking-widest text-industrial-green">{t.search.title}</h2>
           <button onClick={onClose} className="p-2 hover:text-industrial-green transition-colors">
             <X size={32} />
           </button>
@@ -1500,7 +1555,7 @@ const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
               type="text" 
               value={queryText}
               onChange={(e) => setQueryText(e.target.value)}
-              placeholder="Search by Part Number, Name, or Brand..."
+              placeholder={t.search.placeholder}
               className="w-full bg-steel-gray/50 border-2 border-white/10 rounded-sm py-6 pl-16 pr-6 text-2xl font-display focus:border-industrial-green outline-none transition-all green-glow"
             />
           </div>
@@ -1531,7 +1586,7 @@ const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
         {/* Filters */}
         <div className="flex flex-wrap gap-4 mb-12">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Brand</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{t.search.brand}</label>
             <select 
               value={filters.brand}
               onChange={(e) => setFilters(prev => ({ ...prev, brand: e.target.value }))}
@@ -1541,7 +1596,7 @@ const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Industry</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{t.search.industry}</label>
             <select 
               value={filters.industry}
               onChange={(e) => setFilters(prev => ({ ...prev, industry: e.target.value }))}
@@ -1551,14 +1606,14 @@ const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Availability</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{t.search.availability}</label>
             <select 
               value={filters.availability}
               onChange={(e) => setFilters(prev => ({ ...prev, availability: e.target.value }))}
               className="bg-deep-charcoal border border-white/10 rounded-sm px-4 py-2 text-xs font-bold uppercase tracking-widest outline-none focus:border-industrial-green"
             >
-              <option value="All">All Items</option>
-              <option value="In Stock">In Stock Only</option>
+              <option value="All">{t.search.allItems}</option>
+              <option value="In Stock">{t.search.inStockOnly}</option>
             </select>
           </div>
         </div>
@@ -1568,13 +1623,13 @@ const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
           {loading ? (
             <div className="text-center py-20">
               <Loader2 className="w-12 h-12 mx-auto mb-4 text-industrial-green animate-spin opacity-50" />
-              <p className="text-sm uppercase tracking-widest text-gray-500">Accessing Inventory...</p>
+              <p className="text-sm uppercase tracking-widest text-gray-500">{t.search.loading}</p>
             </div>
           ) : results.length === 0 ? (
             <div className="text-center py-20 text-gray-500">
               <Search size={64} className="mx-auto mb-4 opacity-10" />
-              <p className="text-xl font-display uppercase tracking-widest">No matching parts found</p>
-              <p className="text-sm mt-2">Try adjusting your filters or search terms</p>
+              <p className="text-xl font-display uppercase tracking-widest">{t.search.noResults}</p>
+              <p className="text-sm mt-2">{t.search.adjustFilters}</p>
             </div>
           ) : (
             results.map((p, i) => (
@@ -1596,17 +1651,17 @@ const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
                       <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{p.industry}</span>
                     </div>
                     <h3 className="text-xl font-bold group-hover:text-industrial-green transition-colors">{p.name}</h3>
-                    <div className="text-xs font-mono text-gray-400 mt-1">PN: {p.partNumber}</div>
+                    <div className="text-xs font-mono text-gray-400 mt-1">{t.search.pn}: {p.partNumber}</div>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-4">
                   <div className={`px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-widest ${
                     p.inStock ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
                   }`}>
-                    {p.inStock ? 'In Stock' : 'Out of Stock'}
+                    {p.inStock ? t.search.inStock : t.search.outOfStock}
                   </div>
                   <button className="bg-industrial-green text-deep-charcoal px-6 py-2 rounded-sm text-xs font-bold uppercase tracking-widest hover:bg-white transition-all">
-                    Request Quote
+                    {t.search.requestQuote}
                   </button>
                 </div>
               </motion.div>
@@ -1619,6 +1674,7 @@ const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
 };
 
 const Dashboard = ({ onClose }: { onClose: () => void }) => {
+  const { t } = useTranslation();
   const { user, profile } = React.useContext(AuthContext);
   const [activeTab, setActiveTab] = useState<'orders' | 'profile' | 'favorites' | 'tracking' | 'quotes'>('orders');
   const [orders, setOrders] = useState<any[]>([]);
@@ -1665,14 +1721,14 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
   }, [user, profile]);
 
   const tabs = [
-    { id: 'orders', label: 'Orders', icon: <ShoppingCart size={18} /> },
-    { id: 'tracking', label: 'Tracking', icon: <Truck size={18} /> },
-    { id: 'favorites', label: 'Favorites', icon: <Star size={18} /> },
-    { id: 'profile', label: 'Company Profile', icon: <Settings size={18} /> },
+    { id: 'orders', label: t.dashboard.orders, icon: <ShoppingCart size={18} /> },
+    { id: 'tracking', label: t.dashboard.tracking, icon: <Truck size={18} /> },
+    { id: 'favorites', label: t.dashboard.favorites, icon: <Star size={18} /> },
+    { id: 'profile', label: t.dashboard.profile, icon: <Settings size={18} /> },
   ];
 
   if (profile?.role === 'admin') {
-    tabs.push({ id: 'quotes', label: 'Quote Requests', icon: <Mail size={18} /> });
+    tabs.push({ id: 'quotes', label: t.dashboard.quotes, icon: <Mail size={18} /> });
   }
 
   return (
@@ -1697,8 +1753,8 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
               <Bot size={24} className="text-deep-charcoal" />
             </div>
             <div>
-              <h2 className="text-2xl font-display font-bold uppercase tracking-wider">B2B Account Dashboard</h2>
-              <p className="text-xs text-gray-500 uppercase tracking-widest">Welcome back, {profile?.displayName}</p>
+              <h2 className="text-2xl font-display font-bold uppercase tracking-wider">{t.dashboard.title}</h2>
+              <p className="text-xs text-gray-500 uppercase tracking-widest">{t.dashboard.welcome}, {profile?.displayName}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
@@ -1731,13 +1787,13 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
               {orders.length === 0 ? (
                 <div className="text-center py-20 text-gray-500">
                   <ShoppingCart size={48} className="mx-auto mb-4 opacity-20" />
-                  <p className="uppercase tracking-widest text-sm">No orders found.</p>
+                  <p className="uppercase tracking-widest text-sm">{t.dashboard.noOrders}</p>
                 </div>
               ) : (
                 orders.map(order => (
                   <div key={order.id} className="bg-deep-charcoal p-6 rounded-sm border border-white/5 flex flex-col md:flex-row justify-between gap-6">
                     <div>
-                      <div className="text-xs text-gray-500 uppercase tracking-widest mb-1">Order #{order.orderId}</div>
+                      <div className="text-xs text-gray-500 uppercase tracking-widest mb-1">{t.dashboard.orderId}{order.orderId}</div>
                       <div className="text-lg font-bold mb-4">{new Date(order.createdAt?.toDate()).toLocaleDateString()}</div>
                       <div className="space-y-2">
                         {order.items.map((item: any, i: number) => (
@@ -1766,14 +1822,14 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
               {shipments.length === 0 ? (
                 <div className="text-center py-20 text-gray-500">
                   <Truck size={48} className="mx-auto mb-4 opacity-20" />
-                  <p className="uppercase tracking-widest text-sm">No active shipments.</p>
+                  <p className="uppercase tracking-widest text-sm">{t.dashboard.noTracking}</p>
                 </div>
               ) : (
                 shipments.map(shipment => (
                   <div key={shipment.id} className="bg-deep-charcoal p-6 rounded-sm border border-white/5">
                     <div className="flex justify-between items-start mb-6">
                       <div>
-                        <div className="text-xs text-gray-500 uppercase tracking-widest mb-1">Carrier: {shipment.carrier}</div>
+                        <div className="text-xs text-gray-500 uppercase tracking-widest mb-1">{t.dashboard.carrier}: {shipment.carrier}</div>
                         <div className="text-xl font-bold">{shipment.trackingNumber}</div>
                       </div>
                       <div className="bg-industrial-green text-deep-charcoal px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-widest">
@@ -1782,7 +1838,7 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-400">
                       <Clock size={16} className="text-industrial-green" />
-                      <span>Estimated Delivery: {new Date(shipment.estimatedDelivery?.toDate()).toLocaleDateString()}</span>
+                      <span>{t.dashboard.estDelivery}: {new Date(shipment.estimatedDelivery?.toDate()).toLocaleDateString()}</span>
                     </div>
                   </div>
                 ))
@@ -1795,7 +1851,7 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
               {favorites.length === 0 ? (
                 <div className="col-span-full text-center py-20 text-gray-500">
                   <Star size={48} className="mx-auto mb-4 opacity-20" />
-                  <p className="uppercase tracking-widest text-sm">No favorite parts saved.</p>
+                  <p className="uppercase tracking-widest text-sm">{t.dashboard.noFavorites}</p>
                 </div>
               ) : (
                 favorites.map(fav => (
@@ -1803,7 +1859,7 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
                     <div>
                       <div className="text-xs text-industrial-green font-bold uppercase tracking-widest mb-1">{fav.brand}</div>
                       <div className="text-lg font-bold">{fav.name}</div>
-                      <div className="text-xs text-gray-500 font-mono mt-1">PN: {fav.partNumber}</div>
+                      <div className="text-xs text-gray-500 font-mono mt-1">{t.dashboard.pn}: {fav.partNumber}</div>
                     </div>
                     <button className="p-3 bg-steel-gray rounded-sm text-gray-500 hover:text-industrial-green transition-all">
                       <ShoppingCart size={20} />
@@ -1818,7 +1874,7 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
             <div className="max-w-2xl mx-auto space-y-8">
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Company Name</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.contact.company}</label>
                   <div className="bg-deep-charcoal p-4 rounded-sm border border-white/5 text-gray-300">{profile?.companyName || 'Not set'}</div>
                 </div>
                 <div className="space-y-2">
@@ -1827,21 +1883,21 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Registered Address</label>
+                <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.contact.addressTitle}</label>
                 <div className="bg-deep-charcoal p-4 rounded-sm border border-white/5 text-gray-300">{profile?.address || 'Not set'}</div>
               </div>
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Contact Email</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.contact.emailTitle}</label>
                   <div className="bg-deep-charcoal p-4 rounded-sm border border-white/5 text-gray-300">{profile?.email}</div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Phone Number</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-500">{t.contact.phoneTitle}</label>
                   <div className="bg-deep-charcoal p-4 rounded-sm border border-white/5 text-gray-300">{profile?.phone || 'Not set'}</div>
                 </div>
               </div>
               <button className="w-full border border-industrial-green text-industrial-green py-4 rounded-sm font-display font-bold uppercase tracking-widest hover:bg-industrial-green hover:text-deep-charcoal transition-all">
-                Edit Company Details
+                {t.dashboard.editProfile}
               </button>
             </div>
           )}
@@ -1851,14 +1907,14 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
               {quotes.length === 0 ? (
                 <div className="text-center py-20 text-gray-500">
                   <Mail size={48} className="mx-auto mb-4 opacity-20" />
-                  <p className="uppercase tracking-widest text-sm">No quote requests found.</p>
+                  <p className="uppercase tracking-widest text-sm">{t.dashboard.noQuotes}</p>
                 </div>
               ) : (
                 quotes.map(quote => (
                   <div key={quote.id} className="bg-deep-charcoal p-6 rounded-sm border border-white/5 flex flex-col gap-6">
                     <div className="flex justify-between items-start">
                       <div>
-                        <div className="text-xs text-industrial-green font-bold uppercase tracking-widest mb-1">{quote.companyName || 'Individual'}</div>
+                        <div className="text-xs text-industrial-green font-bold uppercase tracking-widest mb-1">{quote.companyName || t.dashboard.individual}</div>
                         <div className="text-xl font-bold">{quote.fullName}</div>
                         <div className="text-sm text-gray-400">{quote.email} | {quote.phone}</div>
                       </div>
@@ -1868,7 +1924,8 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
                           quote.urgency === 'Emergency (Downtime)' ? 'bg-red-500 text-white' : 
                           quote.urgency === 'Urgent' ? 'bg-orange-500 text-white' : 'bg-blue-500 text-white'
                         }`}>
-                          {quote.urgency}
+                          {quote.urgency === 'Standard' ? t.quote.urgencyStandard : 
+                           quote.urgency === 'Urgent' ? t.quote.urgencyUrgent : t.quote.urgencyEmergency}
                         </div>
                       </div>
                     </div>
@@ -1876,18 +1933,18 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
                     <div className="grid md:grid-cols-2 gap-8">
                       <div className="space-y-4">
                         <div>
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-1">Part Details</label>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-1">{t.dashboard.partDetails}</label>
                           <div className="text-gray-300 text-sm bg-steel-gray/30 p-4 rounded-sm border border-white/5 whitespace-pre-wrap">{quote.partDetails}</div>
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-1">Quantity</label>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-1">{t.dashboard.quantity}</label>
                           <div className="text-xl font-bold">{quote.quantity}</div>
                         </div>
                       </div>
                       
                       {quote.imageData && (
                         <div>
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-1">Attached Photo</label>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-1">{t.dashboard.photo}</label>
                           <div className="border border-white/10 rounded-sm overflow-hidden bg-black/20">
                             <img 
                               src={quote.imageData} 
@@ -1911,8 +1968,9 @@ const Dashboard = ({ onClose }: { onClose: () => void }) => {
 };
 
 const ChatWindow = ({ onClose }: { onClose: () => void }) => {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
-    { role: 'model', text: "Hello! I'm the TRUCKS & HYDRAULICS SOLUTIONS AI Expert. How can I help you find the right hydraulic components today?" }
+    { role: 'model', text: t.chat.welcome }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -1938,12 +1996,7 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
       const chat = ai.chats.create({
         model: "gemini-3-flash-preview",
         config: {
-          systemInstruction: `You are the TRUCKS & HYDRAULICS SOLUTIONS Expert Assistant. Your goal is to help users find hydraulic spare parts, identify components from descriptions, check stock (simulated), and provide technical support. 
-          You are professional, authoritative, and helpful. 
-          You know about brands like Rexroth, Danfoss, Parker, Vickers, and Eaton. 
-          If a user asks for a part you don't know, ask for the part number or a photo. 
-          Always encourage them to 'Request a Quote' for official pricing and availability.
-          Keep responses concise and focused on industrial hydraulic solutions.`,
+          systemInstruction: t.chat.systemInstruction,
         },
         history: messages.length > 1 ? messages.map(m => ({
           role: m.role,
@@ -2008,9 +2061,9 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
             <Bot size={18} className="text-deep-charcoal" />
           </div>
           <div>
-            <div className="text-sm font-bold uppercase tracking-widest">AI Parts Expert</div>
+            <div className="text-sm font-bold uppercase tracking-widest">{t.chat.title}</div>
             <div className="text-[10px] text-green-500 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Online
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> {t.chat.online}
             </div>
           </div>
         </div>
@@ -2047,7 +2100,7 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
           type="text" 
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about a part number..."
+          placeholder={t.chat.placeholder}
           className="flex-1 bg-steel-gray border border-white/10 rounded-sm px-4 py-2 text-sm focus:border-industrial-green outline-none transition-all"
         />
         <button 
@@ -2063,6 +2116,7 @@ const ChatWindow = ({ onClose }: { onClose: () => void }) => {
 };
 
 const Footer = () => {
+  const { t } = useTranslation();
   return (
     <footer className="bg-deep-charcoal pt-20 border-t border-white/5">
       <div className="container mx-auto px-4">
@@ -2073,7 +2127,7 @@ const Footer = () => {
               <Logo />
             </a>
             <p className="text-gray-400 text-sm leading-relaxed mb-8">
-              Leading supplier of genuine and OEM-compatible hydraulic spare parts. We specialize in urgent sourcing for industrial, construction, and marine sectors worldwide.
+              {t.hero.subtitle}
             </p>
             <div className="flex gap-4">
               {[Linkedin, Facebook, Instagram, Twitter].map((Icon, i) => (
@@ -2092,7 +2146,7 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-lg font-bold mb-6 text-white">Quick Links</h4>
+            <h4 className="text-lg font-bold mb-6 text-white">{t.nav.products}</h4>
             <ul className="space-y-4 text-sm text-gray-400">
               {['Home', 'About Us', 'Our Brands', 'Industries', 'Technical Support', 'Request a Quote'].map((link) => (
                 <li key={link}><a href="#" className="hover:text-industrial-green transition-colors">{link}</a></li>
@@ -2102,9 +2156,9 @@ const Footer = () => {
 
           {/* Categories */}
           <div>
-            <h4 className="text-lg font-bold mb-6 text-white">Product Categories</h4>
+            <h4 className="text-lg font-bold mb-6 text-white">{t.nav.industries}</h4>
             <ul className="space-y-4 text-sm text-gray-400">
-              {['Hydraulic Pumps', 'Hydraulic Motors', 'Control Valves', 'Cylinders & Rams', 'Seals & O-Rings', 'Hoses & Fittings'].map((link) => (
+              {['Hydraulic Pumps', 'Hydraulic Motors', 'Control Valves', 'Hydraulic Cylinders', 'Pneumatic Seals', 'Maintenance Kits'].map((link) => (
                 <li key={link}><a href="#" className="hover:text-industrial-green transition-colors">{link}</a></li>
               ))}
             </ul>
@@ -2112,11 +2166,11 @@ const Footer = () => {
 
           {/* Contact */}
           <div>
-            <h4 className="text-lg font-bold mb-6 text-white">Contact Details</h4>
+            <h4 className="text-lg font-bold mb-6 text-white">{t.nav.contact}</h4>
             <ul className="space-y-4 text-sm text-gray-400">
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-industrial-green shrink-0" />
-                <span>AL NIMER CENTER, MUSA BIN NUSAIR STREET, AL OLAYA DISTRICT, RIYADH, SAUDI ARABIA</span>
+                <span className="uppercase">AL NIMER CENTER, MUSA BIN NUSAIR STREET, AL OLAYA DISTRICT, RIYADH, SAUDI ARABIA</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-industrial-green shrink-0" />
@@ -2128,17 +2182,17 @@ const Footer = () => {
               </li>
               <li className="flex items-center gap-3">
                 <Clock className="w-5 h-5 text-industrial-green shrink-0" />
-                <span>Sat–Thu: 8:00 – 18:00</span>
+                <span>{t.footer.hours}: Sat–Thu: 8:00 – 18:00</span>
               </li>
             </ul>
           </div>
         </div>
 
         <div className="py-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500 font-medium uppercase tracking-widest">
-          <div>© 2026 TRUCKS & HYDRAULICS SOLUTIONS. All rights reserved.</div>
+          <div>© 2026 TRUCKS & HYDRAULICS SOLUTIONS. {t.footer.rights}</div>
           <div className="flex gap-8">
-            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-white transition-colors">{t.footer.privacy}</a>
+            <a href="#" className="hover:text-white transition-colors">{t.footer.terms}</a>
           </div>
         </div>
 
@@ -2146,27 +2200,27 @@ const Footer = () => {
         <div className="pt-12 pb-20 border-t border-white/5">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
-              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Locations Served</h5>
+              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">{t.footer.locations}</h5>
               <p className="text-[10px] text-gray-600 leading-relaxed uppercase tracking-widest">
                 Hydraulic Spare Parts Riyadh • Hydraulic Solutions Jeddah • Components Supplier Dammam • Industrial Parts Al Khobar • Sourcing Jubail • Machinery Parts Yanbu • Manufacturing Tabuk.
               </p>
             </div>
             <div>
-              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Industries</h5>
+              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">{t.footer.industries}</h5>
               <p className="text-[10px] text-gray-600 leading-relaxed uppercase tracking-widest">
                 Oil & Gas Hydraulics • Construction Machinery KSA • Mining Equipment Spare Parts • Agricultural Hydraulic Systems • Marine Fluid Power • Waste Management Trucks.
               </p>
             </div>
             <div>
-              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Manufacturer Support</h5>
+              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">{t.footer.brands}</h5>
               <p className="text-[10px] text-gray-600 leading-relaxed uppercase tracking-widest">
                 Rexroth Bosch Parts • Danfoss Power Solutions • Parker Hannifin Components • Vickers / Eaton Hydraulics • Kawasaki Pumps • Casappa Motors.
               </p>
             </div>
             <div>
-              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">Service Area</h5>
+              <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-4">{t.footer.service}</h5>
               <p className="text-[10px] text-gray-600 leading-relaxed uppercase tracking-widest">
-                We are a leading Hydraulic Spare Parts Supplier across the Kingdom of Saudi Arabia, providing door-to-door delivery and technical support for all industrial hydraulic systems.
+                {t.hero.badge} {t.hero.subtitle}
               </p>
             </div>
           </div>
@@ -2369,40 +2423,42 @@ export default function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <div className="min-h-screen selection:bg-industrial-green selection:text-deep-charcoal">
-        <AnnouncementBar />
-        <Header 
-          onOpenSearch={() => setIsSearchOpen(true)} 
-          onOpenDashboard={() => setIsDashboardOpen(true)} 
-        />
-        
-        <main>
-          <Hero />
-          <Categories onOpenSearch={() => setIsSearchOpen(true)} />
-          <BrandsTicker />
-          <Industries />
-          <HowItWorks />
-          <StatsAndTestimonials />
-          <FeaturedProducts onOpenSearch={() => setIsSearchOpen(true)} />
-          <QuoteForm />
-        </main>
+    <LanguageProvider>
+      <AuthProvider>
+        <div className="min-h-screen selection:bg-industrial-green selection:text-deep-charcoal">
+          <AnnouncementBar />
+          <Header 
+            onOpenSearch={() => setIsSearchOpen(true)} 
+            onOpenDashboard={() => setIsDashboardOpen(true)} 
+          />
+          
+          <main>
+            <Hero />
+            <Categories onOpenSearch={() => setIsSearchOpen(true)} />
+            <BrandsTicker />
+            <Industries />
+            <HowItWorks />
+            <StatsAndTestimonials />
+            <FeaturedProducts onOpenSearch={() => setIsSearchOpen(true)} />
+            <QuoteForm />
+          </main>
 
-        <Footer />
-        <ConversionOverlays />
+          <Footer />
+          <ConversionOverlays />
 
-        <AnimatePresence>
-          {isDashboardOpen && user && (
-            <Dashboard onClose={() => setIsDashboardOpen(false)} />
-          )}
-        </AnimatePresence>
+          <AnimatePresence>
+            {isDashboardOpen && user && (
+              <Dashboard onClose={() => setIsDashboardOpen(false)} />
+            )}
+          </AnimatePresence>
 
-        <AnimatePresence>
-          {isSearchOpen && (
-            <SearchOverlay onClose={() => setIsSearchOpen(false)} />
-          )}
-        </AnimatePresence>
-      </div>
-    </AuthProvider>
+          <AnimatePresence>
+            {isSearchOpen && (
+              <SearchOverlay onClose={() => setIsSearchOpen(false)} />
+            )}
+          </AnimatePresence>
+        </div>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }

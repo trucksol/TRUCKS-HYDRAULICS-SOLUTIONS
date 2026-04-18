@@ -1,8 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: "Noto Sans Arabic", sans-serif;
   --font-display: "Barlow Condensed", sans-serif;
   
   --color-industrial-green: #22c55e;
@@ -11,12 +12,24 @@
 }
 
 @layer base {
+  [dir="rtl"] {
+    font-family: var(--font-arabic);
+  }
+
   body {
     @apply bg-deep-charcoal text-white font-sans;
   }
   
+  [dir="rtl"] body {
+    @apply font-arabic;
+  }
+  
   h1, h2, h3, h4, h5, h6 {
     @apply font-display uppercase tracking-wider;
+  }
+
+  [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3, [dir="rtl"] h4, [dir="rtl"] h5, [dir="rtl"] h6 {
+    @apply font-arabic font-bold normal-case;
   }
 }
 
